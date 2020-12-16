@@ -912,3 +912,15 @@ exports.httpGet = function(url) {
         });
     });
 };
+
+exports.getUuid = function(objectId, toolId, nodeId) {
+    if (objectId) {
+        if (toolId) {
+            if (nodeId) {
+                return objectId + toolId + nodeId;
+            }
+            return objectId + toolId;
+        }
+        return objectId;
+    }
+};

@@ -1,5 +1,7 @@
 let SceneNode = require('./SceneNode');
-let utils = require('./utils');
+let graphUtils = require('./utils');
+let utilities = require('../utilities');
+
 /**
  * The scene graph stores and computes the locations of all known objects, tools, and nodes.
  * It mirrors the information collected by Spatial Toolbox clients and can be used to perform
@@ -35,11 +37,12 @@ class SceneGraph {
 
     addObject(objectId, initialLocalMatrix, needsRotateX) {
         let sceneNode = null;
-        if (typeof this.graph[objectId] !== 'undefined') {
-            sceneNode = this.graph[objectId];
+        let uuid = utilities.getUuid(objectId);
+        if (typeof this.graph[uuid] !== 'undefined') {
+            sceneNode = this.graph[uuid];
         } else {
-            sceneNode = new SceneNode(objectId);
-            this.graph[objectId] = sceneNode;
+            sceneNode = new SceneNode(uuid);
+            this.graph[uuid] = sceneNode;
         }
 
         sceneNode.setParent(this.rootNode);
@@ -59,18 +62,20 @@ class SceneGraph {
 
     addFrame(objectId, frameId, linkedFrame, initialLocalMatrix) {
         let sceneNode = null;
-        if (typeof this.graph[frameId] !== 'undefined') {
-            sceneNode = this.graph[frameId];
+        let uuid = utilities.getUuid(objectId, frameId);
+        if (typeof this.graph[uuid] !== 'undefined') {
+            sceneNode = this.graph[uuid];
         } else {
-            sceneNode = new SceneNode(frameId);
-            this.graph[frameId] = sceneNode;
+            sceneNode = new SceneNode(uuid);
+            this.graph[uuid] = sceneNode;
         }
 
-        if (typeof this.graph[objectId] !== 'undefined') {
-            if (this.graph[objectId].needsRotateX) {
-                sceneNode.setParent(this.graph[objectId + 'rotateX']);
+        let objectUuid = utilities.getUuid(objectId);
+        if (typeof this.graph[objectUuid] !== 'undefined') {
+            if (this.graph[objectUuid].needsRotateX) {
+                sceneNode.setParent(this.graph[objectUuid + 'rotateX']);
             } else {
-                sceneNode.setParent(this.graph[objectId]);
+                sceneNode.setParent(this.graph[objectUuid]);
             }
         }
 
@@ -89,15 +94,17 @@ class SceneGraph {
 
     addNode(objectId, frameId, nodeId, linkedNode, initialLocalMatrix) {
         let sceneNode = null;
-        if (typeof this.graph[nodeId] !== 'undefined') {
-            sceneNode = this.graph[nodeId];
+        let uuid = utilities.getUuid(objectId, frameId, nodeId);
+        if (typeof this.graph[uuid] !== 'undefined') {
+            sceneNode = this.graph[uuid];
         } else {
-            sceneNode = new SceneNode(nodeId);
-            this.graph[nodeId] = sceneNode;
+            sceneNode = new SceneNode(uuid);
+            this.graph[uuid] = sceneNode;
         }
 
-        if (typeof this.graph[frameId] !== 'undefined') {
-            sceneNode.setParent(this.graph[frameId]);
+        let frameUuid = utilities.getUuid(objectId, frameId);
+        if (typeof this.graph[frameUuid] !== 'undefined') {
+            sceneNode.setParent(this.graph[frameUuid]);
         }
 
         if (typeof linkedNode !== 'undefined') {
@@ -129,7 +136,7 @@ class SceneGraph {
 
         // image target objects require one coordinate system rotation. ground plane requires another.
         if (groundPlaneVariation) {
-            sceneNode.setLocalMatrix(utils.makeGroundPlaneRotationX(-(Math.PI/2)));
+            sceneNode.setLocalMatrix(graphUtils.makeGroundPlaneRotationX(-(Math.PI/2)));
         } else {
             sceneNode.setLocalMatrix([ // transform coordinate system by rotateX
                 1,  0, 0, 0,
@@ -181,7 +188,7 @@ class SceneGraph {
     }
 
     updateWithPositionData(objectId, frameId, nodeId, localMatrix, x, y, scale) {
-        let id = nodeId || frameId || objectId; // gets most specific address
+        let id = utilities.getUuid(objectId, frameId, nodeId); // gets most specific address
         let sceneNode = this.graph[id];
         if (sceneNode) {
             sceneNode.updateVehicleXYScale(x, y, scale);
@@ -192,8 +199,8 @@ class SceneGraph {
 
     updateObjectWorldId(objectId, worldId) {
         if (objectId === worldId) { return; } // don't set a node to be its own parent
-        let worldNode = this.graph[worldId];
-        let objectNode = this.graph[objectId];
+        let worldNode = this.graph[utilities.getUuid(worldId)];
+        let objectNode = this.graph[utilities.getUuid(objectId)];
         if (!objectNode || !worldNode) { return; } // unknown object or world
         objectNode.setParent(worldNode);
     }
@@ -255,10 +262,11 @@ class SceneGraph {
         }.bind(this));
     }
 
-    getWorldPosition(id) {
+    getWorldPosition(objectId, frameId, nodeId) {
         this.recomputeGraph();
 
-        let node = this.graph[id];
+        let uuid = utilities.getUuid(objectId, frameId, nodeId);
+        let node = this.graph[uuid];
         if (node) {
             return node.worldMatrix;
         }
